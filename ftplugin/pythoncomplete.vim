@@ -74,7 +74,7 @@ function! pythoncomplete#Complete(findstart, base)
         while idx > 0
             let idx -= 1
             let c = line[idx]
-            if c =~ '\w' || c =~ '\.'
+            if c =~ '\w' || c =~ '\.' || c == "("
                 let cword = c . cword
                 continue
             elseif strlen(cword) > 0 || idx == 0
