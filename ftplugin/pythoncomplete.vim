@@ -157,7 +157,7 @@ class Completer(object):
         return doc.replace('"',' ').replace("'",' ')
 
     def get_arguments(self,func_obj):
-        def _ctor(obj):
+        def _ctor(class_ob):
             try: return class_ob.__init__.im_func
             except AttributeError:
                 for base in class_ob.__bases__:
