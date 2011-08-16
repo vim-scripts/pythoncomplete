@@ -88,7 +88,7 @@ endfunction
 
 function! s:DefPython()
 python << PYTHONEOF
-import sys, tokenize, cStringIO, types
+import sys, tokenize, cStringIO, inspect
 from token import NAME, DEDENT, NEWLINE, STRING
 
 debugstmts=[]
@@ -165,13 +165,15 @@ class Completer(object):
                     if rc is not None: return rc
             return None
 
+        # Avoid "type(foo) == types.ClassType", it rejects meta-classes
+
         arg_offset = 1
-        if type(func_obj) == types.ClassType: func_obj = _ctor(func_obj)
-        elif type(func_obj) == types.MethodType: func_obj = func_obj.im_func
+        if inspect.isclass(func_obj): func_obj = _ctor(func_obj)
+        elif inspect.ismethod(func_obj): func_obj = func_obj.im_func
         else: arg_offset = 0
-        
+
         arg_text=''
-        if type(func_obj) in [types.FunctionType, types.LambdaType]:
+        if inspect.isfunction(func_obj):
             try:
                 cd = func_obj.func_code
                 real_args = cd.co_varnames[arg_offset:cd.co_argcount]
@@ -503,10 +505,10 @@ class PyParser:
         newscope = Scope('result',0)
         scp = self.currentscope
         while scp != None:
-            if type(scp) == Function:
+            if inspect.isfunction(scp):
                 slice = 0
                 #Handle 'self' params
-                if scp.parent != None and type(scp.parent) == Class:
+                if scp.parent != None and inspect.isclass(scp.parent):
                     slice = 1
                     newscope.local('%s = %s' % (scp.params[0],scp.parent.name))
                 for p in scp.params[slice:]:
