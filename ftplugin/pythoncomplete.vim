@@ -185,7 +185,7 @@ class Completer(object):
                     items.append("...")
                 if func_obj.func_code.co_flags & 0x8:
                     items.append("***")
-                arg_text = (','.join(items)) + ')'
+                arg_text = (', '.join(items)) + ')'
 
             except:
                 dbg("arg completion: %s: %s" % (sys.exc_info()[0],sys.exc_info()[1]))
