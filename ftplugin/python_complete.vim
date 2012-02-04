@@ -39,14 +39,18 @@
 " Yeah, I skipped a version number - 0.4 was never public.
 "  It was a bugfix version on top of 0.3.  This is a complete
 "  rewrite.
-"
+
+if exists("b:loaded_python_complete") | finish | endif
+let b:loaded_python_complete = 1
 
 if !has('python')
     echo "Error: Required vim compiled with +python"
     finish
 endif
 
-function! pythoncomplete#Complete(findstart, base)
+setlocal omnifunc=python_complete#Complete
+
+function! python_complete#Complete(findstart, base)
     "findstart = 1 when we need to get the text length
     if a:findstart == 1
         let line = getline('.')
@@ -82,7 +86,7 @@ function! pythoncomplete#Complete(findstart, base)
             endif
         endwhile
         execute "python vimcomplete('" . cword . "', '" . a:base . "')"
-        return g:pythoncomplete_completions
+        return g:python_complete_completions
     endif
 endfunction
 
@@ -133,7 +137,7 @@ def vimcomplete(context,match):
         if dictstr[-1] == ',': dictstr = dictstr[:-1]
         dictstr += ']'
         #dbg("dict: %s" % dictstr)
-        vim.command("silent let g:pythoncomplete_completions = %s" % dictstr)
+        vim.command("silent let g:python_complete_completions = %s" % dictstr)
         #dbg("Completion dict:\n%s" % all)
     except vim.error:
         dbg("VIM Error: %s" % vim.error)
