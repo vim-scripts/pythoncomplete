@@ -39,14 +39,18 @@
 " Yeah, I skipped a version number - 0.4 was never public.
 "  It was a bugfix version on top of 0.3.  This is a complete
 "  rewrite.
-"
+
+if exists("b:loaded_python_complete") | finish | endif
+let b:loaded_python_complete = 1
 
 if !has('python')
     echo "Error: Required vim compiled with +python"
     finish
 endif
 
-function! pythoncomplete#Complete(findstart, base)
+setlocal omnifunc=python_complete#Complete
+
+function! python_complete#Complete(findstart, base)
     "findstart = 1 when we need to get the text length
     if a:findstart == 1
         let line = getline('.')
@@ -74,7 +78,7 @@ function! pythoncomplete#Complete(findstart, base)
         while idx > 0
             let idx -= 1
             let c = line[idx]
-            if c =~ '\w' || c =~ '\.'
+            if c =~ '\w' || c =~ '\.' || c == "("
                 let cword = c . cword
                 continue
             elseif strlen(cword) > 0 || idx == 0
@@ -82,13 +86,13 @@ function! pythoncomplete#Complete(findstart, base)
             endif
         endwhile
         execute "python vimcomplete('" . cword . "', '" . a:base . "')"
-        return g:pythoncomplete_completions
+        return g:python_complete_completions
     endif
 endfunction
 
 function! s:DefPython()
 python << PYTHONEOF
-import sys, tokenize, cStringIO, types
+import sys, tokenize, cStringIO, inspect
 from token import NAME, DEDENT, NEWLINE, STRING
 
 debugstmts=[]
@@ -133,7 +137,7 @@ def vimcomplete(context,match):
         if dictstr[-1] == ',': dictstr = dictstr[:-1]
         dictstr += ']'
         #dbg("dict: %s" % dictstr)
-        vim.command("silent let g:pythoncomplete_completions = %s" % dictstr)
+        vim.command("silent let g:python_complete_completions = %s" % dictstr)
         #dbg("Completion dict:\n%s" % all)
     except vim.error:
         dbg("VIM Error: %s" % vim.error)
@@ -157,7 +161,7 @@ class Completer(object):
         return doc.replace('"',' ').replace("'",' ')
 
     def get_arguments(self,func_obj):
-        def _ctor(obj):
+        def _ctor(class_ob):
             try: return class_ob.__init__.im_func
             except AttributeError:
                 for base in class_ob.__bases__:
@@ -165,13 +169,15 @@ class Completer(object):
                     if rc is not None: return rc
             return None
 
+        # Avoid "type(foo) == types.ClassType", it rejects meta-classes
+
         arg_offset = 1
-        if type(func_obj) == types.ClassType: func_obj = _ctor(func_obj)
-        elif type(func_obj) == types.MethodType: func_obj = func_obj.im_func
+        if inspect.isclass(func_obj): func_obj = _ctor(func_obj)
+        elif inspect.ismethod(func_obj): func_obj = func_obj.im_func
         else: arg_offset = 0
-        
+
         arg_text=''
-        if type(func_obj) in [types.FunctionType, types.LambdaType]:
+        if inspect.isfunction(func_obj):
             try:
                 cd = func_obj.func_code
                 real_args = cd.co_varnames[arg_offset:cd.co_argcount]
@@ -183,7 +189,7 @@ class Completer(object):
                     items.append("...")
                 if func_obj.func_code.co_flags & 0x8:
                     items.append("***")
-                arg_text = (','.join(items)) + ')'
+                arg_text = (', '.join(items)) + ')'
 
             except:
                 dbg("arg completion: %s: %s" % (sys.exc_info()[0],sys.exc_info()[1]))
@@ -503,10 +509,10 @@ class PyParser:
         newscope = Scope('result',0)
         scp = self.currentscope
         while scp != None:
-            if type(scp) == Function:
+            if inspect.isfunction(scp):
                 slice = 0
                 #Handle 'self' params
-                if scp.parent != None and type(scp.parent) == Class:
+                if scp.parent != None and inspect.isclass(scp.parent):
                     slice = 1
                     newscope.local('%s = %s' % (scp.params[0],scp.parent.name))
                 for p in scp.params[slice:]:
@@ -623,3 +629,4 @@ endfunction
 
 call s:DefPython()
 " vim: set et ts=4:
+
